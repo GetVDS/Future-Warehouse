@@ -74,6 +74,8 @@ export default function LoginPage() {
               <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
               <input
                 type="tel"
+                id="login-phone"
+                name="login-phone"
                 placeholder="手机号"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -87,6 +89,8 @@ export default function LoginPage() {
               <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
               <input
                 type="password"
+                id="login-password"
+                name="login-password"
                 placeholder="密码"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

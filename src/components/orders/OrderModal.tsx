@@ -92,15 +92,20 @@ export function OrderModal({
             <div className="relative">
               <input
                 type="text"
+                id="customer-search"
+                name="customer-search"
                 placeholder="搜索客户姓名或手机号..."
                 value={customerSearchTerm}
                 onChange={(e) => setCustomerSearchTerm(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <select
+                id="customer-select"
+                name="customer-select"
                 value={selectedCustomer}
                 onChange={(e) => setSelectedCustomer(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mt-2"
+                required
               >
                 <option value="">请选择客户</option>
                 {filteredCustomers.map((customer) => (
@@ -144,6 +149,8 @@ export function OrderModal({
               备注（选填）
             </label>
             <textarea
+              id="order-note"
+              name="order-note"
               value={orderNote}
               onChange={(e) => setOrderNote(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -194,9 +201,12 @@ function OrderItemRow({ item, products, index, onItemChange, onRemoveItem }: Ord
   return (
     <div className="flex gap-2 mb-2">
       <select
+        id={`product-select-${index}`}
+        name={`product-select-${index}`}
         value={item.productId}
         onChange={(e) => onItemChange(index, 'productId', e.target.value)}
         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        required
       >
         <option value="">选择产品</option>
         {products.map((product) => (
@@ -208,6 +218,8 @@ function OrderItemRow({ item, products, index, onItemChange, onRemoveItem }: Ord
       
       <input
         type="number"
+        id={`quantity-${index}`}
+        name={`quantity-${index}`}
         min="1"
         max={maxStock}
         value={item.quantity}
@@ -221,6 +233,7 @@ function OrderItemRow({ item, products, index, onItemChange, onRemoveItem }: Ord
         }}
         className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="数量"
+        required
       />
       
       <button

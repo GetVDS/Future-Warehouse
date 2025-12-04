@@ -1,6 +1,6 @@
 'use client';
 
-import { ProductCard } from '@/components/ProductCard';
+import { ProductCard, ProductMobileCard } from '@/components/ProductCard';
 
 interface ProductListProps {
   products: any[];
@@ -23,7 +23,8 @@ export function ProductList({
 }: ProductListProps) {
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
-      <div className="overflow-x-auto">
+      {/* 桌面端表格布局 */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
@@ -68,6 +69,22 @@ export function ProductList({
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* 移动端卡片布局 */}
+      <div className="lg:hidden">
+        {products.map((product) => (
+          <ProductMobileCard
+            key={product.id}
+            product={product}
+            stockInputs={stockInputs}
+            onStockInputChange={onStockInputChange}
+            onStockUpdate={onStockUpdate}
+            onDeleteProduct={onDeleteProduct}
+            getStockStatus={getStockStatus}
+            getStockPercentage={getStockPercentage}
+          />
+        ))}
       </div>
       
       {products.length === 0 && (

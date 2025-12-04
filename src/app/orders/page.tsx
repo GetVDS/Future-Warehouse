@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, ArrowLeft, Trash2, ShoppingCart, User, Package } from 'lucide-react';
+import { Plus, Search, ArrowLeft, Trash2, ShoppingCart, User, Package, Users } from 'lucide-react';
 import { showConfirm } from '@/lib/notification';
 import { useOrders } from '@/hooks/useOrders';
 
@@ -442,7 +442,8 @@ export default function OrdersPage() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          {/* PC端布局 */}
+          <div className="hidden sm:flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => router.push('/')}
@@ -468,53 +469,88 @@ export default function OrdersPage() {
               </button>
             </div>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        {/* 今日统计 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-blue-100 rounded-lg p-3">
-                <ShoppingCart className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">今日订单总额</p>
-                <p className="text-2xl font-bold text-gray-900">₽{todayStats.totalAmount.toFixed(2)}</p>
+          
+          {/* 移动端布局 */}
+          <div className="sm:hidden">
+            <div className="flex justify-between items-center h-12">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => router.push('/')}
+                  className="p-2 text-gray-600 hover:text-gray-900"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <h1 className="text-lg font-bold text-gray-900">订单管理</h1>
               </div>
             </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-green-100 rounded-lg p-3">
-                <Package className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">今日出库数量</p>
-                <p className="text-2xl font-bold text-gray-900">{todayStats.totalQuantity}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-purple-100 rounded-lg p-3">
-                <User className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">今日下单客户</p>
-                <p className="text-2xl font-bold text-gray-900">{todayStats.customerCount}</p>
+            <div className="flex justify-around py-2 border-t">
+              <button
+                onClick={() => router.push('/')}
+                className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-900"
+              >
+                <Package className="h-5 w-5" />
+                <span className="text-xs mt-1">产品</span>
+              </button>
+              <button
+                onClick={() => router.push('/customers')}
+                className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-900"
+              >
+                <Users className="h-5 w-5" />
+                <span className="text-xs mt-1">客户</span>
+              </button>
+              <div className="flex flex-col items-center p-2 text-blue-600">
+                <ShoppingCart className="h-5 w-5" />
+                <span className="text-xs mt-1">订单</span>
               </div>
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Search and Actions */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+
+        {/* 今日统计 - 移动端优化 */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-blue-100 rounded-lg p-2 sm:p-3">
+                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-500">今日订单总额</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">₽{Math.round(todayStats.totalAmount)}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-green-100 rounded-lg p-2 sm:p-3">
+                <Package className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-500">今日出库数量</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{todayStats.totalQuantity}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-purple-100 rounded-lg p-2 sm:p-3">
+                <User className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-500">今日下单客户</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{todayStats.customerCount}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Actions - 移动端优化 */}
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow mb-6">
+          <div className="flex flex-col gap-3 sm:gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
@@ -528,7 +564,7 @@ export default function OrdersPage() {
             
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="h-4 w-4" />
               创建订单
@@ -536,9 +572,10 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        {/* Orders List */}
+        {/* Orders List - 移动端优化 */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* PC端表格布局 */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -590,7 +627,7 @@ export default function OrdersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div>₽{order.totalAmount.toFixed(2)}</div>
+                      <div>₽{Math.round(order.totalAmount)}</div>
                       {order.note && (
                         <div className="text-xs text-gray-500 mt-1">备注: {order.note}</div>
                       )}
@@ -641,11 +678,103 @@ export default function OrdersPage() {
             </table>
           </div>
           
-          {filteredOrders.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              暂无订单数据
-            </div>
-          )}
+          {/* 移动端卡片布局 */}
+          <div className="sm:hidden">
+            {filteredOrders.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                暂无订单数据
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {filteredOrders.map((order) => (
+                  <div key={order.id} className="p-4 space-y-3">
+                    {/* 订单头部信息 */}
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-medium text-gray-900">
+                            PRAISE{String(order.orderNumber || 0).padStart(4, '0')}
+                          </h3>
+                          {/* 订单状态移至订单ID右侧 */}
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            order.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                            order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {order.status === 'confirmed' ? '已确认' :
+                             order.status === 'pending' ? '待处理' : '已取消'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                          <User className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium text-gray-900">{order.customer.name}</div>
+                            <div className="text-gray-500">{order.customer.phone}</div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* 删除按钮移到右上角 */}
+                      <button
+                        onClick={() => handleDeleteOrder(order.id)}
+                        className="p-2 text-red-600 hover:text-red-900"
+                        title="删除订单"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    
+                    {/* 订单项 */}
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-gray-700">订单项:</div>
+                      {order.orderItems.map((item) => (
+                        <div key={item.id} className="flex justify-between items-center py-1 border-b border-gray-100">
+                          <span className="text-sm text-gray-900">{item.product.sku}</span>
+                          <span className="text-sm text-gray-600">x {item.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* 金额和时间 */}
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-gray-500">
+                        {new Date(order.createdAt).toLocaleDateString('zh-CN')}
+                      </div>
+                      <div className="text-sm font-medium text-gray-900">
+                        ₽{Math.round(order.totalAmount)}
+                      </div>
+                    </div>
+                    
+                    {/* 备注 */}
+                    {order.note && (
+                      <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                        备注: {order.note}
+                      </div>
+                    )}
+                    
+                    {/* 操作按钮 */}
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                      {order.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleConfirmOrder(order.id)}
+                            className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                          >
+                            确认出售
+                          </button>
+                          <button
+                            onClick={() => handleCancelOrder(order.id)}
+                            className="flex-1 px-3 py-2 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
+                          >
+                            取消订单
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </main>
 

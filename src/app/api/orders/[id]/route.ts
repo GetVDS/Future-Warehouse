@@ -119,21 +119,25 @@ export async function DELETE(
       );
     }
 
-    // 使用事务删除订单并恢复库存
+    // 使用事务删除订单
     await db.$transaction(async (tx) => {
-      // 恢复产品库存
-      for (const item of existingOrder.orderItems) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            currentStock: {
-              increment: item.quantity
-            },
-            totalOut: {
-              decrement: item.quantity
+      // 只有当订单状态为"已确认"(confirmed)时，产品已经从库存中售出，删除已确认的订单时不应该恢复库存
+      // 如果订单状态为"待处理"(pending)，则需要恢复库存
+      if (existingOrder.status === 'pending') {
+        // 恢复产品库存
+        for (const item of existingOrder.orderItems) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              currentStock: {
+                increment: item.quantity
+              },
+              totalOut: {
+                decrement: item.quantity
+              }
             }
-          }
-        });
+          });
+        }
       }
 
       // 先删除所有订单项

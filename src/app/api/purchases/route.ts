@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 计算总金额
-    const totalAmount = quantity * price;
+    const totalAmount = Math.round(quantity * price);
 
     // 使用事务创建购买记录和更新库存
     const result = await db.$transaction(async (tx) => {
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
           productId,
           quantity: parseInt(quantity),
           price: parseFloat(price),
-          totalAmount: parseFloat(totalAmount.toFixed(2)),
+          totalAmount: Math.round(quantity * price),
           purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date()
         },
         include: {

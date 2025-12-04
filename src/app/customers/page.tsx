@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, User, Phone, ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, User, Phone, ArrowLeft, Edit, Trash2, Package, ShoppingCart, Users } from 'lucide-react';
 import { showConfirm, showError } from '@/lib/notification';
 import { useCustomers } from '@/hooks/useCustomers';
 
@@ -128,7 +128,8 @@ export default function CustomersPage() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          {/* PC端布局 */}
+          <div className="hidden sm:flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => router.push('/')}
@@ -154,14 +155,49 @@ export default function CustomersPage() {
               </button>
             </div>
           </div>
+          
+          {/* 移动端布局 */}
+          <div className="sm:hidden">
+            <div className="flex justify-between items-center h-12">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => router.push('/')}
+                  className="p-2 text-gray-600 hover:text-gray-900"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <h1 className="text-lg font-bold text-gray-900">客户管理</h1>
+              </div>
+            </div>
+            <div className="flex justify-around py-2 border-t">
+              <button
+                onClick={() => router.push('/')}
+                className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-900"
+              >
+                <Package className="h-5 w-5" />
+                <span className="text-xs mt-1">产品</span>
+              </button>
+              <button
+                onClick={() => router.push('/orders')}
+                className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-900"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                <span className="text-xs mt-1">订单</span>
+              </button>
+              <div className="flex flex-col items-center p-2 text-blue-600">
+                <Users className="h-5 w-5" />
+                <span className="text-xs mt-1">客户</span>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
 
-        {/* Search and Actions */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+        {/* Search and Actions - 移动端优化 */}
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow mb-6">
+          <div className="flex flex-col gap-3 sm:gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
@@ -175,7 +211,7 @@ export default function CustomersPage() {
             
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="h-4 w-4" />
               添加客户
@@ -183,9 +219,10 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        {/* Customer List */}
+        {/* Customer List - 移动端优化 */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* PC端表格布局 */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -236,7 +273,7 @@ export default function CustomersPage() {
                       {customer._count?.orders || 0}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ₽{customer.totalAmount?.toFixed(2) || '0.00'}
+                      ₽{Math.round(customer.totalAmount || 0)}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(customer.createdAt).toLocaleDateString('zh-CN')}
@@ -261,11 +298,65 @@ export default function CustomersPage() {
             </table>
           </div>
           
-          {filteredCustomers.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              暂无客户数据
-            </div>
-          )}
+          {/* 移动端卡片布局 */}
+          <div className="sm:hidden">
+            {filteredCustomers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                暂无客户数据
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {filteredCustomers.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="p-4 hover:bg-gray-50 cursor-pointer"
+                    onClick={() => router.push(`/customers/${customer.id}`)}
+                  >
+                    {/* 客户基本信息 */}
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h3 className="text-base font-medium text-gray-900 mb-1">{customer.name}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Phone className="h-4 w-4" />
+                          <span>{customer.phone}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCustomer(customer.id, customer.name);
+                        }}
+                        className="p-2 text-red-600 hover:text-red-900"
+                        title="删除客户"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    
+                    {/* 客户统计信息网格 */}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-gray-50 p-2 rounded">
+                        <div className="text-gray-500 text-xs mb-1">购买记录</div>
+                        <div className="font-medium text-gray-900">{customer._count?.orders || 0}</div>
+                      </div>
+                      <div className="bg-gray-50 p-2 rounded">
+                        <div className="text-gray-500 text-xs mb-1">购买金额</div>
+                        <div className="font-medium text-gray-900">₽{Math.round(customer.totalAmount || 0)}</div>
+                      </div>
+                    </div>
+                    
+                    {/* 创建时间 */}
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span>创建时间:</span>
+                        <span>{new Date(customer.createdAt).toLocaleDateString('zh-CN')}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </main>
 

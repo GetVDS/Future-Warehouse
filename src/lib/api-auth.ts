@@ -222,6 +222,23 @@ export function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   
+  // 设置Content Security Policy - 允许eval用于开发环境
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // 允许eval和内联脚本
+    "style-src 'self' 'unsafe-inline'", // 允许内联样式
+    "img-src 'self' data: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' ws: wss:", // 允许WebSocket连接
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'"
+  ].join('; ');
+  
+  response.headers.set('Content-Security-Policy', cspDirectives);
+  
   // 在生产环境中添加HSTS头
   if (process.env.NODE_ENV === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

@@ -56,14 +56,13 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     });
 
-    // 计算每个客户的总购买金额（包含已确认订单和购买记录）
+    // 计算每个客户的总购买金额（只使用购买记录，避免重复计算）
     const customersWithTotalAmount = customers.map(customer => {
       const purchaseRecordsTotal = customer.purchaseRecords.reduce((sum, record) => sum + Number(record.totalAmount), 0);
-      const confirmedOrdersTotal = customer.orders.reduce((sum, order) => sum + Number(order.totalAmount), 0);
       
       return {
         ...customer,
-        totalAmount: purchaseRecordsTotal + confirmedOrdersTotal
+        totalAmount: Math.round(purchaseRecordsTotal)
       };
     });
 

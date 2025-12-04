@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, LogOut, Check } from 'lucide-react';
+import { Plus, Search, LogOut, Check, Users, ShoppingCart, Trash2, Minus, PlusCircle } from 'lucide-react';
 import { ProductCard } from '@/components/ProductCard';
 import { StatisticsCard } from '@/components/StatisticsCard';
 import { useProducts } from '@/hooks/useProducts';
@@ -199,6 +199,16 @@ export default function OptimizedHomePage() {
 
     const changeAmount = parseInt(value);
     
+    // 立即清空输入框，防止重复提交
+    setStockInputs(prev => ({
+      ...prev,
+      [id]: {
+        decrease: prev[id]?.decrease || '',
+        increase: prev[id]?.increase || '',
+        [field === 'increase' ? 'increase' : 'decrease']: ''
+      }
+    }));
+    
     // 乐观更新：立即更新UI
     const optimisticUpdates = {
       currentStock: field === 'increase'
@@ -223,16 +233,6 @@ export default function OptimizedHomePage() {
       p.id === id ? { ...p, ...optimisticUpdates } : p
     ));
 
-    // 清空输入框
-    setStockInputs(prev => ({
-      ...prev,
-      [id]: {
-        decrease: prev[id]?.decrease || '',
-        increase: prev[id]?.increase || '',
-        [field === 'increase' ? 'increase' : 'decrease']: ''
-      }
-    }));
-
     // 发送API请求
     const result = await api.post(`/api/products/${id}/stock`, {
       [field]: changeAmount
@@ -247,6 +247,7 @@ export default function OptimizedHomePage() {
         p.id === id ? currentValue : p
       ));
     }
+    // 移除自动刷新，避免页面跳回顶部
   }, [stockInputs, products, calculateStatistics]);
 
   if (loading || !user) {
@@ -265,43 +266,80 @@ export default function OptimizedHomePage() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          {/* PC端布局 */}
+          <div className="hidden sm:flex justify-between items-center h-16">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">PRAISEJEANS库存管理系统</h1>
+              <h1 className="text-xl font-bold text-gray-900">PRAISEJEANS</h1>
             </div>
             <div className="flex items-center gap-4">
               <button
                 onClick={() => router.push('/customers')}
                 className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+                title="客户管理"
               >
-                客户管理
+                <Users className="h-4 w-4" />
               </button>
               <button
                 onClick={() => router.push('/orders')}
                 className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+                title="订单管理"
               >
-                订单管理
+                <ShoppingCart className="h-4 w-4" />
               </button>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+                title="退出登录"
               >
                 <LogOut className="h-4 w-4" />
-                退出登录
+              </button>
+            </div>
+          </div>
+          
+          {/* 移动端布局 */}
+          <div className="sm:hidden">
+            <div className="flex justify-between items-center h-12">
+              <h1 className="text-lg font-bold text-gray-900">PRAISEJEANS</h1>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-600 hover:text-gray-900"
+                title="退出登录"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex justify-around py-2 border-t">
+              <button
+                onClick={() => router.push('/customers')}
+                className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-900"
+                title="客户管理"
+              >
+                <Users className="h-5 w-5" />
+                <span className="text-xs mt-1">客户</span>
+              </button>
+              <button
+                onClick={() => router.push('/orders')}
+                className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-900"
+                title="订单管理"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                <span className="text-xs mt-1">订单</span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
 
-        {/* Statistics Cards */}
-        <StatisticsCard statistics={statistics} />
+        {/* Statistics Cards - 移动端优化 */}
+        <div className="mb-6">
+          <StatisticsCard statistics={statistics} />
+        </div>
 
-        {/* Search and Actions */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+        {/* Search and Actions - 移动端优化 */}
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow mb-6">
+          <div className="flex flex-col gap-3 sm:gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
@@ -313,28 +351,31 @@ export default function OptimizedHomePage() {
               />
             </div>
             
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'stock' | 'sku')}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="stock">按库存排序</option>
-              <option value="sku">按款号排序</option>
-            </select>
-            
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              添加产品
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'stock' | 'sku')}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="stock">按库存排序</option>
+                <option value="sku">按款号排序</option>
+              </select>
+              
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                添加产品
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Product List */}
-        <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
-          <div className="overflow-x-auto">
+        {/* Product List - 移动端优化 */}
+        <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+          {/* PC端表格布局 */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -381,14 +422,107 @@ export default function OptimizedHomePage() {
             </table>
           </div>
           
-          {filteredProducts.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              暂无产品数据
-            </div>
-          )}
+          {/* 移动端卡片布局 */}
+          <div className="sm:hidden">
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                暂无产品数据
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {filteredProducts.map((product) => {
+                  const stockStatus = getStockStatus(product.currentStock);
+                  const stockPercentage = getStockPercentage(product.currentStock);
+                  
+                  return (
+                    <div key={product.id} className="p-4 space-y-3">
+                      {/* 产品基本信息和删除按钮 */}
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-medium text-gray-900">{product.sku}</h3>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${stockStatus.className}`}>
+                              {stockStatus.text}
+                            </span>
+                          </div>
+                        </div>
+                        {/* 删除按钮移到右上角 */}
+                        <button
+                          onClick={() => handleDeleteProduct(product.id, product.sku)}
+                          className="p-2 text-red-600 hover:text-red-900"
+                          title="删除产品"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      
+                      {/* 库存数据和操作区域 */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* 左侧：库存数据 */}
+                        <div className="space-y-1">
+                          <div className="text-sm text-black font-medium">库存: {product.currentStock}</div>
+                          <div className="flex justify-between">
+                            <span className="text-xs text-gray-500">出库: {product.totalOut}</span>
+                            <span className="text-xs text-gray-500">入库: {product.totalIn}</span>
+                          </div>
+                        </div>
+                        
+                        {/* 右侧：单价和价值 */}
+                        <div className="text-right space-y-1">
+                          <div className="text-sm font-medium text-gray-900">单价: ₽{product.price}</div>
+                          <div className="text-xs text-gray-500">价值: ₽{Math.round(product.currentStock * product.price)}</div>
+                        </div>
+                      </div>
+                      
+                      {/* 库存操作区域 */}
+                      <div className="space-y-2">
+                        {/* 出库操作 */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-12">出库:</span>
+                          <input
+                            type="number"
+                            placeholder="数量"
+                            value={stockInputs[product.id]?.decrease || ''}
+                            onChange={(e) => handleStockInputChange(product.id, 'decrease', e.target.value)}
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          <button
+                            onClick={() => handleStockUpdate(product.id, 'decrease')}
+                            className="p-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                            title="确认出库"
+                          >
+                            <Check className="h-3 w-3" />
+                          </button>
+                        </div>
+                        
+                        {/* 入库操作 */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-12">入库:</span>
+                          <input
+                            type="number"
+                            placeholder="数量"
+                            value={stockInputs[product.id]?.increase || ''}
+                            onChange={(e) => handleStockInputChange(product.id, 'increase', e.target.value)}
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          <button
+                            onClick={() => handleStockUpdate(product.id, 'increase')}
+                            className="p-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                            title="确认入库"
+                          >
+                            <Check className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Outbound Ranking */}
+        {/* Outbound Ranking - 移动端优化 */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-4 py-3 bg-gray-50 border-b">
             <h3 className="text-sm font-medium text-gray-900">产品出库数量排名</h3>
@@ -397,8 +531,8 @@ export default function OptimizedHomePage() {
             {getOutboundRanking().length > 0 ? (
               <div className="space-y-2">
                 {getOutboundRanking().map((product, index) => (
-                  <div key={product.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div className="flex items-center gap-3">
+                  <div key={product.id} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <span className="text-sm font-medium text-gray-600 w-6">
                         {index + 1}.
                       </span>
@@ -406,12 +540,12 @@ export default function OptimizedHomePage() {
                         {product.sku}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-600">
+                    <div className="flex items-center gap-2 sm:gap-4">
+                      <span className="text-xs sm:text-sm text-gray-600">
                         出库: {product.totalOut}
                       </span>
-                      <span className="text-sm text-gray-600">
-                        占比: {statistics.totalOut > 0 ? ((product.totalOut / statistics.totalOut) * 100).toFixed(1) : 0}%
+                      <span className="text-xs sm:text-sm text-gray-600">
+                        {statistics.totalOut > 0 ? ((product.totalOut / statistics.totalOut) * 100).toFixed(1) : 0}%
                       </span>
                     </div>
                   </div>
@@ -465,11 +599,14 @@ export default function OptimizedHomePage() {
                 </label>
                 <input
                   type="number"
-                  step="0.01"
                   value={newProductPrice}
-                  onChange={(e) => setNewProductPrice(e.target.value)}
+                  onChange={(e) => {
+                    // 只允许输入整数，不允许小数点
+                    const value = e.target.value.replace(/[^\d-]/g, '');
+                    setNewProductPrice(value);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="请输入产品单价"
+                  placeholder="请输入产品单价（整数）"
                 />
               </div>
             </div>

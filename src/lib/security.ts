@@ -29,8 +29,8 @@ const SECURITY_CONFIG = {
   
   // CORS配置
   ALLOWED_ORIGINS: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
-    : ['http://localhost:3000', 'http://localhost:3001'],
+    ? ['https://yourdomain.com']
+    : ['http://localhost:3000'],
 };
 
 // 内存存储（生产环境应使用Redis等外部存储）

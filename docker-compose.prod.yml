@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:./db/custom.db
+      - JWT_SECRET=${JWT_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - FORCE_HTTPS=true
+      - ENABLE_CSP=true
+      - ENABLE_HSTS=true
+      - SESSION_TIMEOUT=604800
+      - MAX_LOGIN_ATTEMPTS=5
+      - LOGIN_LOCKOUT_TIME=900
+      - RATE_LIMIT_MAX_REQUESTS=100
+      - ENABLE_SECURITY_LOGGING=true
+      - LOG_DIR=./logs
+      - ENABLE_QUERY_MONITORING=true
+      - SLOW_QUERY_THRESHOLD=1000
+      - ENABLE_CONNECTION_POOL=true
+      - MAX_CONNECTIONS=10
+      - ERROR_WEBHOOK_URL=${ERROR_WEBHOOK_URL}
+    volumes:
+      - ./db:/app/db
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+
+volumes:
+  db:
+    driver: local
+  logs:
+    driver: local
+
+networks:
+  default:
+    driver: bridge

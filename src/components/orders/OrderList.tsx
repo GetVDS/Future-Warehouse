@@ -30,7 +30,8 @@ export function OrderList({
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* 桌面端表格布局 */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
@@ -69,6 +70,19 @@ export function OrderList({
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* 移动端卡片布局 */}
+      <div className="lg:hidden">
+        {filteredOrders.map((order) => (
+          <OrderMobileRow
+            key={order.id}
+            order={order}
+            onConfirmOrder={onConfirmOrder}
+            onCancelOrder={onCancelOrder}
+            onDeleteOrder={onDeleteOrder}
+          />
+        ))}
       </div>
       
       {filteredOrders.length === 0 && (
@@ -112,7 +126,7 @@ function OrderRow({ order, onConfirmOrder, onCancelOrder, onDeleteOrder }: Order
         </div>
       </td>
       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-        <div>₽{order.totalAmount.toFixed(2)}</div>
+        <div>₽{Math.round(order.totalAmount)}</div>
         {order.note && (
           <div className="text-xs text-gray-500 mt-1">备注: {order.note}</div>
         )}
@@ -184,6 +198,104 @@ function OrderActions({ order, onConfirmOrder, onCancelOrder, onDeleteOrder }: O
           <Trash2 className="h-3 w-3" />
         </button>
       )}
+    </div>
+  );
+}
+
+// 移动端订单卡片组件
+interface OrderMobileRowProps {
+  order: Order;
+  onConfirmOrder: (id: string) => void;
+  onCancelOrder: (id: string) => void;
+  onDeleteOrder: (id: string) => void;
+}
+
+function OrderMobileRow({ order, onConfirmOrder, onCancelOrder, onDeleteOrder }: OrderMobileRowProps) {
+  return (
+    <div className="border-b border-gray-200 p-4 space-y-4">
+      {/* 订单头部信息 */}
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
+          <h3 className="text-base font-medium text-gray-900 mb-1">
+            PRAISE{String(order.orderNumber || 0).padStart(4, '0')}
+          </h3>
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <User className="h-4 w-4" />
+            <div>
+              <div className="font-medium text-gray-900">{order.customer.name}</div>
+              <div className="text-gray-500">{order.customer.phone}</div>
+            </div>
+          </div>
+        </div>
+        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+          order.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+          order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+          'bg-red-100 text-red-800'
+        }`}>
+          {order.status === 'confirmed' ? '已确认' :
+           order.status === 'pending' ? '待处理' : '已取消'}
+        </span>
+      </div>
+
+      {/* 订单项 */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium text-gray-700">订单项</h4>
+        <div className="space-y-1">
+          {order.orderItems.map((item) => (
+            <div key={item.id} className="flex justify-between items-center text-sm">
+              <span className="font-medium text-gray-900">{item.product.sku}</span>
+              <span className="text-gray-600">x {item.quantity}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 金额和时间 */}
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="text-gray-500">总金额</p>
+          <p className="font-medium text-gray-900">₽{Math.round(order.totalAmount)}</p>
+        </div>
+        <div>
+          <p className="text-gray-500">创建时间</p>
+          <p className="font-medium text-gray-900">{new Date(order.createdAt).toLocaleDateString('zh-CN')}</p>
+        </div>
+      </div>
+
+      {/* 备注 */}
+      {order.note && (
+        <div className="text-sm">
+          <p className="text-gray-500">备注</p>
+          <p className="text-gray-900">{order.note}</p>
+        </div>
+      )}
+
+      {/* 操作按钮 */}
+      <div className="flex gap-2 pt-2 border-t border-gray-100">
+        {order.status === 'pending' && (
+          <>
+            <button
+              onClick={() => onConfirmOrder(order.id)}
+              className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+            >
+              确认出售
+            </button>
+            <button
+              onClick={() => onCancelOrder(order.id)}
+              className="flex-1 px-3 py-2 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
+            >
+              取消订单
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => onDeleteOrder(order.id)}
+          className="px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          title="删除订单"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

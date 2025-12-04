@@ -58,10 +58,13 @@ export function CustomerModal({ isOpen, onClose, onAddCustomer }: CustomerModalP
             </label>
             <input
               type="text"
+              id="customer-name"
+              name="customer-name"
               value={newCustomerName}
               onChange={(e) => setNewCustomerName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="请输入客户姓名"
+              required
             />
           </div>
           
@@ -71,11 +74,14 @@ export function CustomerModal({ isOpen, onClose, onAddCustomer }: CustomerModalP
             </label>
             <input
               type="tel"
+              id="customer-phone"
+              name="customer-phone"
               value={newCustomerPhone}
               onChange={handlePhoneChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="请输入11位俄罗斯手机号"
               maxLength={11}
+              required
             />
           </div>
         </div>

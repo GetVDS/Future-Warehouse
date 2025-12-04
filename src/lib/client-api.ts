@@ -22,8 +22,8 @@ class ApiClient {
 
   constructor() {
     this.baseUrl = process.env.NODE_ENV === 'production'
-      ? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001')
-      : 'http://localhost:3001';
+      ? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
+      : 'http://localhost:3000';
   }
 
   private async request<T = any>(

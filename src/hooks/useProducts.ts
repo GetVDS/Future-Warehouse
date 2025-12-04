@@ -84,10 +84,10 @@ export const useProducts = () => {
   }, []);
 
   const getStockStatus = useCallback((stock: number) => {
-    if (stock < 100) return { status: '缺货', color: 'text-red-600 bg-red-50' };
-    if (stock < 200) return { status: '较少', color: 'text-orange-600 bg-orange-50' };
-    if (stock < 500) return { status: '正常', color: 'text-green-600 bg-green-50' };
-    return { status: '充足', color: 'text-blue-600 bg-blue-50' };
+    if (stock < 100) return { status: '缺货', color: 'text-red-600 bg-red-50', text: '缺货', className: 'bg-red-100 text-red-800' };
+    if (stock < 200) return { status: '较少', color: 'text-orange-600 bg-orange-50', text: '较少', className: 'bg-orange-100 text-orange-800' };
+    if (stock < 500) return { status: '正常', color: 'text-green-600 bg-green-50', text: '正常', className: 'bg-green-100 text-green-800' };
+    return { status: '充足', color: 'text-blue-600 bg-blue-50', text: '充足', className: 'bg-blue-100 text-blue-800' };
   }, []);
 
   const getStockPercentage = useCallback((stock: number) => {
