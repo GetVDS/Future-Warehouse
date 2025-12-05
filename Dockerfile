@@ -14,6 +14,9 @@ COPY prisma ./prisma/
 # 安装所有依赖（包括开发依赖，因为构建需要）
 RUN npm ci --legacy-peer-deps && npm cache clean --force
 
+# 安装额外的生产依赖
+RUN npm install bcryptjs
+
 # 构建阶段
 FROM base AS builder
 WORKDIR /app
@@ -50,6 +53,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# 复制必要的生产依赖
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+COPY --from=builder /app/package.json ./package.json
+
+# 创建数据库目录
+RUN mkdir -p db && chown -R nextjs:nodejs db
 
 USER nextjs
 

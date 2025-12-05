@@ -498,13 +498,20 @@ copy_project_files() {
     sudo cp "$SCRIPT_DIR/tailwind.config.ts" /opt/apps/inventory-system/
     sudo cp "$SCRIPT_DIR/postcss.config.mjs" /opt/apps/inventory-system/
     sudo cp "$SCRIPT_DIR/.dockerignore" /opt/apps/inventory-system/
+    sudo cp "$SCRIPT_DIR/components.json" /opt/apps/inventory-system/
+    sudo cp "$SCRIPT_DIR/eslint.config.mjs" /opt/apps/inventory-system/
+    sudo cp "$SCRIPT_DIR/.npmrc" /opt/apps/inventory-system/
+    
+    # 复制初始化脚本
+    log_info "复制初始化脚本..."
+    sudo cp "$SCRIPT_DIR/init-admin.js" /opt/apps/inventory-system/
     
     # 复制Docker相关文件
     if [ -f "$SCRIPT_DIR/Dockerfile" ]; then
-        cp "$SCRIPT_DIR/Dockerfile" /opt/apps/inventory-system/
+        sudo cp "$SCRIPT_DIR/Dockerfile" /opt/apps/inventory-system/
     fi
     if [ -f "$SCRIPT_DIR/nginx.conf" ]; then
-        cp "$SCRIPT_DIR/nginx.conf" /opt/apps/inventory-system/nginx/
+        sudo cp "$SCRIPT_DIR/nginx.conf" /opt/apps/inventory-system/nginx/
     fi
     
     # 排除不需要的文件
@@ -532,6 +539,18 @@ build_and_start() {
     
     # 构建并启动服务
     docker compose up -d --build
+    
+    # 等待容器启动
+    log_info "等待容器启动..."
+    sleep 30
+    
+    # 初始化数据库
+    log_info "初始化数据库..."
+    docker compose exec app npx prisma migrate deploy
+    
+    # 初始化管理员用户
+    log_info "初始化管理员用户..."
+    docker compose exec app node init-admin.js
     
     log_info "应用启动完成"
 }
