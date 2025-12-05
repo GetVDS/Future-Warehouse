@@ -492,7 +492,13 @@ copy_project_files() {
     sudo cp -r "$SCRIPT_DIR/src" /opt/apps/inventory-system/
     sudo cp -r "$SCRIPT_DIR/prisma" /opt/apps/inventory-system/
     sudo cp -r "$SCRIPT_DIR/public" /opt/apps/inventory-system/
-    sudo cp "$SCRIPT_DIR/package*.json" /opt/apps/inventory-system/
+    # 复制package.json和package-lock.json
+    if [ -f "$SCRIPT_DIR/package.json" ]; then
+        sudo cp "$SCRIPT_DIR/package.json" /opt/apps/inventory-system/
+    fi
+    if [ -f "$SCRIPT_DIR/package-lock.json" ]; then
+        sudo cp "$SCRIPT_DIR/package-lock.json" /opt/apps/inventory-system/
+    fi
     sudo cp "$SCRIPT_DIR/tsconfig.json" /opt/apps/inventory-system/
     sudo cp "$SCRIPT_DIR/next.config.js" /opt/apps/inventory-system/
     sudo cp "$SCRIPT_DIR/tailwind.config.ts" /opt/apps/inventory-system/
