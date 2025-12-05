@@ -22,7 +22,7 @@ async function verifyAuth(request: NextRequest) {
 // GET - 获取单个订单详情
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await verifyAuth(request);
@@ -30,7 +30,7 @@ export async function GET(
       return NextResponse.json({ error: '未认证' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
@@ -87,7 +87,7 @@ export async function GET(
 // DELETE - 删除订单
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await verifyAuth(request);
@@ -95,7 +95,7 @@ export async function DELETE(
       return NextResponse.json({ error: '未认证' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
@@ -167,7 +167,7 @@ export async function DELETE(
 // PUT - 更新订单状态
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await verifyAuth(request);
@@ -175,7 +175,7 @@ export async function PUT(
       return NextResponse.json({ error: '未认证' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const { status } = await request.json();
 
     if (!id) {

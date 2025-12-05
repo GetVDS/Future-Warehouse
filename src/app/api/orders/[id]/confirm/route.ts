@@ -5,7 +5,7 @@ import { verifyAuth, createErrorResponse, createSuccessResponse } from '@/lib/ap
 // POST - 确认订单
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await verifyAuth(request);
@@ -13,7 +13,7 @@ export async function POST(
       return NextResponse.json(createErrorResponse('未认证', 401), { status: 401 });
     }
 
-    const orderId = params.id;
+    const { id: orderId } = await params;
 
     // 获取订单详情
     const order = await db.order.findUnique({
