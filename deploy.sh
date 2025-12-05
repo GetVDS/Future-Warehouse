@@ -199,34 +199,50 @@ EOF
 
 # 创建生产环境Dockerfile
 create_dockerfile() {
-    log_info "创建生产环境Dockerfile..."
+    log_info "使用项目根目录的Dockerfile..."
     
-    cat > /opt/apps/inventory-system/Dockerfile <<'EOF'
-# 多阶段构建 - 构建阶段
-FROM node:18-alpine AS builder
+    # 如果项目根目录没有Dockerfile，则创建一个
+    if [ ! -f /opt/apps/inventory-system/Dockerfile ]; then
+        log_info "创建默认Dockerfile..."
+        cat > /opt/apps/inventory-system/Dockerfile <<'EOF'
+# 使用官方Node.js运行时作为基础镜像
+FROM node:18-alpine AS base
 
+# 安装依赖阶段
+FROM base AS deps
+# 检查https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # 复制package文件
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# 安装依赖
-RUN npm ci --only=production && npm cache clean --force
+# 安装所有依赖（包括开发依赖，因为构建需要）
+RUN npm ci --legacy-peer-deps && npm cache clean --force
+
+# 构建阶段
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/prisma ./prisma/
+COPY . .
 
 # 生成Prisma客户端
 RUN npx prisma generate
 
-# 复制源代码
-COPY . .
+# 设置环境变量
+ENV NEXT_TELEMETRY_DISABLED 1
 
 # 构建应用
 RUN npm run build
 
-# 生产阶段
-FROM node:18-alpine AS runner
-
+# 运行阶段
+FROM base AS runner
 WORKDIR /app
+
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
 
 # 创建非root用户
 RUN addgroup --system --gid 1001 nodejs
@@ -234,33 +250,27 @@ RUN adduser --system --uid 1001 nextjs
 
 # 复制构建产物
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 创建数据库目录
-RUN mkdir -p db && chown -R nextjs:nodejs db
+# 复制prisma相关文件
+COPY --from=builder /app/prisma ./prisma/
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# 设置用户
 USER nextjs
 
-# 暴露端口
 EXPOSE 3000
 
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
-
 # 启动应用
 CMD ["node", "server.js"]
 EOF
-
-    log_info "Dockerfile创建完成"
+    fi
+    
+    log_info "Dockerfile准备完成"
 }
 
 # 创建Docker Compose配置
@@ -302,9 +312,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/ssl/certs:ro
       - ./logs/nginx:/var/log/nginx
     depends_on:
       - app
@@ -322,19 +331,19 @@ EOF
 
 # 创建Nginx配置
 create_nginx_config() {
-    log_info "创建Nginx配置..."
+    log_info "使用项目根目录的nginx.conf..."
     
-    # 创建主配置文件
-    cat > /opt/apps/inventory-system/nginx/nginx.conf <<'EOF'
-user www-data;
+    # 如果项目根目录没有nginx.conf，则创建一个
+    if [ ! -f /opt/apps/inventory-system/nginx/nginx.conf ]; then
+        log_info "创建默认nginx.conf..."
+        cat > /opt/apps/inventory-system/nginx/nginx.conf <<'EOF'
+user nginx;
 worker_processes auto;
-pid /run/nginx.pid;
-include /etc/nginx/modules-enabled/*.conf;
+error_log /var/log/nginx/error.log notice;
+pid /var/run/nginx.pid;
 
 events {
     worker_connections 1024;
-    use epoll;
-    multi_accept on;
 }
 
 http {
@@ -342,12 +351,11 @@ http {
     default_type application/octet-stream;
 
     # 日志格式
-    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
-                    '$status $body_bytes_sent "$http_referer" '
-                    '"$http_user_agent" "$http_x_forwarded_for"';
+    log_format main '\$remote_addr - \$remote_user [\$time_local] "\$request" '
+                    '\$status \$body_bytes_sent "\$http_referer" '
+                    '"\$http_user_agent" "\$http_x_forwarded_for"';
 
     access_log /var/log/nginx/access.log main;
-    error_log /var/log/nginx/error.log warn;
 
     # 基本设置
     sendfile on;
@@ -355,7 +363,7 @@ http {
     tcp_nodelay on;
     keepalive_timeout 65;
     types_hash_max_size 2048;
-    server_tokens off;
+    client_max_body_size 20M;
 
     # Gzip压缩
     gzip on;
@@ -374,72 +382,96 @@ http {
         application/atom+xml
         image/svg+xml;
 
-    # 包含站点配置
-    include /etc/nginx/conf.d/*.conf;
+    # 上游服务器配置
+    upstream app {
+        server app:3000;
+    }
+
+    # HTTP重定向到HTTPS
+    server {
+        listen 80;
+        server_name _;
+        return 301 https://\$host\$request_uri;
+    }
+
+    # HTTPS主服务器配置
+    server {
+        listen 443 ssl http2;
+        server_name _;
+
+        # SSL证书配置
+        ssl_certificate /etc/ssl/certs/cert.pem;
+        ssl_certificate_key /etc/ssl/private/key.pem;
+        
+        # SSL安全配置
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;
+        ssl_prefer_server_ciphers off;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        # 安全头
+        add_header X-Frame-Options DENY;
+        add_header X-Content-Type-Options nosniff;
+        add_header X-XSS-Protection "1; mode=block";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        # 静态文件缓存
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            try_files \$uri @app;
+        }
+
+        # Next.js静态资源
+        location /_next/static/ {
+            alias /var/www/html/_next/static/;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # API路由
+        location /api/ {
+            proxy_pass http://app;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_cache_bypass \$http_upgrade;
+            proxy_read_timeout 86400;
+        }
+
+        # 所有其他请求转发到Next.js应用
+        location / {
+            proxy_pass http://app;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_cache_bypass \$http_upgrade;
+            proxy_read_timeout 86400;
+        }
+
+        # 健康检查
+        location /health {
+            proxy_pass http://app/api/health;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+    }
 }
 EOF
-
-    # 创建站点配置
-    cat > /opt/apps/inventory-system/nginx/conf.d/default.conf <<EOF
-server {
-    listen 80;
-    server_name $DOMAIN www.$DOMAIN;
-    return 301 https://\$server_name\$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name $DOMAIN www.$DOMAIN;
+    fi
     
-    # SSL配置
-    ssl_certificate /etc/nginx/ssl/certificate.crt;
-    ssl_certificate_key /etc/nginx/ssl/private.key;
-    ssl_session_timeout 1d;
-    ssl_session_cache shared:MozTLS:10m;
-    ssl_session_tickets off;
-    
-    # SSL安全设置
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers off;
-    
-    # HSTS
-    add_header Strict-Transport-Security "max-age=63072000" always;
-    
-    # 安全头部
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Referrer-Policy "strict-origin-when-cross-origin";
-    
-    # 客户端最大请求体大小
-    client_max_body_size 10M;
-    
-    # 代理设置
-    location / {
-        proxy_pass http://app:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-        proxy_read_timeout 300s;
-        proxy_connect_timeout 75s;
-    }
-    
-    # 静态文件缓存
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        proxy_pass http://app:3000;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-EOF
-
-    log_info "Nginx配置创建完成"
+    log_info "Nginx配置准备完成"
 }
 
 # 安装SSL证书
@@ -465,10 +497,34 @@ copy_project_files() {
     # 获取当前脚本所在目录
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     
-    # 复制所有必要文件到部署目录
-    cp -r "$SCRIPT_DIR"/* /opt/apps/inventory-system/
+    # 确保目标目录存在
+    mkdir -p /opt/apps/inventory-system
+    
+    # 复制所有必要的源代码文件和目录
+    log_info "复制源代码..."
+    cp -r "$SCRIPT_DIR/src" /opt/apps/inventory-system/
+    cp -r "$SCRIPT_DIR/prisma" /opt/apps/inventory-system/
+    cp -r "$SCRIPT_DIR/public" /opt/apps/inventory-system/
+    
+    # 复制配置文件
+    log_info "复制配置文件..."
+    cp "$SCRIPT_DIR/package*.json" /opt/apps/inventory-system/
+    cp "$SCRIPT_DIR/tsconfig.json" /opt/apps/inventory-system/
+    cp "$SCRIPT_DIR/next.config.js" /opt/apps/inventory-system/
+    cp "$SCRIPT_DIR/tailwind.config.ts" /opt/apps/inventory-system/
+    cp "$SCRIPT_DIR/postcss.config.mjs" /opt/apps/inventory-system/
+    cp "$SCRIPT_DIR/.dockerignore" /opt/apps/inventory-system/
+    
+    # 复制Docker相关文件
+    if [ -f "$SCRIPT_DIR/Dockerfile" ]; then
+        cp "$SCRIPT_DIR/Dockerfile" /opt/apps/inventory-system/
+    fi
+    if [ -f "$SCRIPT_DIR/nginx.conf" ]; then
+        cp "$SCRIPT_DIR/nginx.conf" /opt/apps/inventory-system/nginx/
+    fi
     
     # 排除不需要的文件
+    log_info "清理不需要的文件..."
     rm -rf /opt/apps/inventory-system/.git
     rm -rf /opt/apps/inventory-system/node_modules
     rm -rf /opt/apps/inventory-system/.next

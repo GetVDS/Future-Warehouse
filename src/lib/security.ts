@@ -28,8 +28,8 @@ const SECURITY_CONFIG = {
   SECURE_COOKIES: process.env.NODE_ENV === 'production',
   
   // CORS配置
-  ALLOWED_ORIGINS: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com']
+  ALLOWED_ORIGINS: process.env.NODE_ENV === 'production'
+    ? (process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://yourdomain.com'])
     : ['http://localhost:3000'],
 };
 
@@ -217,7 +217,9 @@ export async function secureAuth(request: NextRequest): Promise<{
   }
   
   // 检查速率限制
-  const clientIP = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+  const clientIP = request.headers.get('x-forwarded-for') ||
+                   request.headers.get('x-real-ip') ||
+                   'unknown';
   const rateLimitResult = checkRateLimit(clientIP);
   
   if (!rateLimitResult.canProceed) {
