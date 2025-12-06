@@ -2,18 +2,38 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
     environment:
       - DATABASE_URL=file:./db/custom.db
-      - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=your-secret-key-change-this-in-production
       - NODE_ENV=production
       - JWT_SECRET=your-jwt-secret-change-this-in-production
+      - NEXTAUTH_URL=https://your-domain.com
+      - NEXTAUTH_SECRET=your-secret-key-change-this-in-production
+      - FORCE_HTTPS=true
+      - SECURE_COOKIES=true
+      - ALLOWED_ORIGINS=https://your-domain.com
+      - LOG_LEVEL=error
+      - ENABLE_SECURITY_LOGGING=true
+      - ENABLE_QUERY_MONITORING=true
+      - SLOW_QUERY_THRESHOLD=1000
+      - ENABLE_CONNECTION_POOL=true
+      - MAX_CONNECTIONS=10
     volumes:
       - ./db:/app/db
+      - ./logs:/app/logs
     restart: unless-stopped
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   nginx:
     image: nginx:alpine
@@ -21,8 +41,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/ssl:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/letsencrypt:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./logs/nginx:/var/log/nginx
     depends_on:
       - app
     restart: unless-stopped

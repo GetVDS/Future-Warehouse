@@ -144,18 +144,62 @@ netstat -tulpn
 
 ## 故障排查
 
+### 502 Bad Gateway错误专门解决方案
+
+如果遇到502 Bad Gateway错误，请使用专门的故障排除脚本：
+
+```bash
+# 进入部署目录
+cd /opt/apps/inventory-system
+
+# 运行故障排除脚本
+./troubleshoot-deployment.sh check
+
+# 如果问题仍然存在，尝试自动修复
+./troubleshoot-deployment.sh fix
+```
+
+#### 手动故障排除步骤
+
+1. **检查容器状态**
+   ```bash
+   docker compose ps
+   ```
+
+2. **检查容器日志**
+   ```bash
+   docker compose logs app --tail=50
+   docker compose logs nginx --tail=50
+   ```
+
+3. **测试网络连接**
+   ```bash
+   # 测试nginx到app容器的连接
+   docker compose exec nginx wget -q --spider http://app:3000/api/health
+   
+   # 测试应用容器健康状态
+   docker compose exec app curl -f http://localhost:3000/api/health
+   ```
+
+4. **重启服务**
+   ```bash
+   docker compose down
+   sleep 10
+   docker compose up -d
+   ```
+
 ### 常见问题及解决方案
 
 1. **容器无法启动**
    ```bash
    # 查看容器日志
-   docker-compose logs app
+   docker compose logs app
    
    # 检查容器状态
-   docker-compose ps
+   docker compose ps
    
    # 重启容器
-   docker-compose restart app
+   docker compose restart app
    ```
 
 2. **网站无法访问**
@@ -188,10 +232,28 @@ netstat -tulpn
    ls -la db/custom.db
    
    # 重新生成Prisma客户端
-   docker-compose exec app npx prisma generate
+   docker compose exec app npx prisma generate
    
    # 检查数据库连接
-   docker-compose exec app npx prisma db pull
+   docker compose exec app npx prisma db pull
+   ```
+
+5. **端口冲突**
+   ```bash
+   # 查看端口占用情况
+   sudo netstat -tlnp | grep -E ':(80|443|3000)'
+   
+   # 停止冲突的服务
+   sudo systemctl stop nginx  # 如果系统nginx正在运行
+   ```
+
+6. **应用容器健康检查失败**
+   ```bash
+   # 检查应用是否正常运行
+   docker compose exec app curl -f http://localhost:3000/api/health
+   
+   # 如果健康检查失败，重建应用容器
+   docker compose up -d --build --force-recreate app
    ```
 
 ## 性能优化建议
