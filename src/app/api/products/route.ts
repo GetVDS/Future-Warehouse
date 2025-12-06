@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(apiResponse.unauthorized(), { status: 401 } as any);
     }
 
-    // 优化查询：只选择需要的字段，添加缓存头
+    // 优化查询：只选择需要的字段，启用客户端缓存
     const products = await db.product.findMany({
       select: {
         id: true,
@@ -25,11 +25,9 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     });
 
-    // 添加缓存头 - 缩短缓存时间以确保实时性
+    // 添加缓存头 - 启用短期缓存以提高性能
     const response = NextResponse.json(apiResponse.success({ products }) as any);
-    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
+    response.headers.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     return response;
   } catch (error) {
     return handleApiError(error, 'Get products') as any;

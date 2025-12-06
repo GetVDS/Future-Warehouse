@@ -34,39 +34,59 @@ export const useOrders = (user: any) => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataFetched, setDataFetched] = useState(false); // 防止重复获取
 
   const fetchOrders = useCallback(async () => {
     try {
-      const response = await api.get('/api/orders');
+      // 启用客户端缓存，缓存5分钟
+      const response = await api.get('/api/orders', { cache: true });
       if (response.success && response.data?.orders) {
         setOrders(response.data.orders);
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
     }
-  }, [setOrders]);
+  }, []);
 
   const fetchCustomers = useCallback(async () => {
     try {
-      const response = await api.get('/api/customers');
+      // 启用客户端缓存，缓存5分钟
+      const response = await api.get('/api/customers', { cache: true });
       if (response.success && response.data?.customers) {
         setCustomers(response.data.customers);
       }
     } catch (error) {
       console.error('Failed to fetch customers:', error);
     }
-  }, [setCustomers]);
+  }, []);
 
   const fetchProducts = useCallback(async () => {
     try {
-      const response = await api.get('/api/products');
+      // 启用客户端缓存，缓存5分钟
+      const response = await api.get('/api/products', { cache: true });
       if (response.success && response.data?.products) {
         setProducts(response.data.products);
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
     }
-  }, [setProducts]);
+  }, []);
+
+  const fetchAllData = useCallback(async () => {
+    if (dataFetched) return; // 防止重复调用
+    
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchOrders(),
+        fetchCustomers(),
+        fetchProducts()
+      ]);
+      setDataFetched(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchOrders, fetchCustomers, fetchProducts, dataFetched]);
 
   const createOrder = useCallback(async (orderData: { customerId: string; items: Array<{productId: string, quantity: number}>; note?: string }) => {
     const result = await api.post('/api/orders', orderData, {
@@ -74,8 +94,10 @@ export const useOrders = (user: any) => {
       successMessage: '订单创建成功'
     });
 
-    // 不再在这里自动添加订单到列表，让页面组件处理
-    // 这样可以确保订单创建后立即可以执行操作
+    // 乐观更新：立即添加新订单到列表
+    if (result.success && result.data?.order) {
+      setOrders(prev => [result.data.order, ...prev]);
+    }
 
     return result;
   }, []);
@@ -92,26 +114,20 @@ export const useOrders = (user: any) => {
     }
 
     return result;
-  }, [setOrders]);
+  }, []);
 
   useEffect(() => {
-    // 只在用户认证完成后才获取数据
-    if (user) {
-      setLoading(true);
-      Promise.all([
-        fetchOrders(),
-        fetchCustomers(),
-        fetchProducts()
-      ]).finally(() => {
-        setLoading(false);
-      });
-    } else {
-      // 用户未登录时清空数据
+    // 只在用户认证完成后才获取数据，且只获取一次
+    if (user && !dataFetched) {
+      fetchAllData();
+    } else if (!user) {
+      // 用户未登录时清空数据和重置获取标志
       setOrders([]);
       setCustomers([]);
       setProducts([]);
+      setDataFetched(false);
     }
-  }, [user, fetchOrders, fetchCustomers, fetchProducts]);
+  }, [user, fetchAllData]);
 
   return {
     orders,

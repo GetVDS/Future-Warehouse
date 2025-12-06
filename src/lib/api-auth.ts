@@ -15,9 +15,9 @@ export const createErrorResponse = (message: string, status: number = 400) => ({
 });
 
 // 安全的API认证中间件
-export async function withAuth(
+export function withAuth(
   handler: (request: NextRequest, context?: any, userId?: string) => Promise<NextResponse>
-) {
+): (request: NextRequest, context?: any) => Promise<NextResponse> {
   return async (request: NextRequest, context?: any): Promise<NextResponse> => {
     try {
       // 执行安全认证
@@ -256,7 +256,7 @@ export function createSecureResponse(data: any, status: number = 200): NextRespo
 // 错误处理包装器
 export function withErrorHandler(
   handler: (request: NextRequest, context?: any, userId?: string) => Promise<NextResponse>
-) {
+): (request: NextRequest, context?: any) => Promise<NextResponse> {
   return async (request: NextRequest, context?: any): Promise<NextResponse> => {
     try {
       return await handler(request, context);
@@ -266,8 +266,8 @@ export function withErrorHandler(
       // 根据错误类型返回不同的响应
       if (error instanceof Error) {
         // 开发环境返回详细错误信息
-        const errorMessage = process.env.NODE_ENV === 'development' 
-          ? error.message 
+        const errorMessage = process.env.NODE_ENV === 'development'
+          ? error.message
           : '服务器内部错误';
           
         return createSecureResponse(
@@ -285,8 +285,10 @@ export function withErrorHandler(
 }
 
 // 组合多个中间件
-export function compose(...middlewares: Function[]) {
-  return (handler: Function) => {
+export function compose(
+  ...middlewares: ((handler: (request: NextRequest, context?: any) => Promise<NextResponse>) => (request: NextRequest, context?: any) => Promise<NextResponse>)[]
+) {
+  return (handler: (request: NextRequest, context?: any) => Promise<NextResponse>) => {
     return middlewares.reduceRight((acc, middleware) => {
       return middleware(acc);
     }, handler);

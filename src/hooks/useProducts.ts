@@ -17,25 +17,28 @@ export const useProducts = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'stock' | 'sku'>('stock');
+  const [dataFetched, setDataFetched] = useState(false);
 
   const fetchProducts = useCallback(async () => {
+    if (dataFetched) return; // 防止重复调用
+    
     try {
       setLoading(true);
-      // 添加时间戳参数防止缓存
-      const timestamp = Date.now();
-      const response = await api.get(`/api/products?t=${timestamp}`);
+      // 启用客户端缓存，缓存5分钟
+      const response = await api.get('/api/products', { cache: true });
       console.log('获取产品数据响应:', response);
       if (response.success && response.data?.products) {
         console.log('更新产品数据:', response.data.products);
         setProducts(response.data.products);
         calculateStatistics(response.data.products);
+        setDataFetched(true);
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dataFetched]);
 
   // 优化：乐观更新函数
   const optimisticUpdateProduct = useCallback((productId: string, updates: Partial<Product>) => {
@@ -47,7 +50,9 @@ export const useProducts = () => {
   // 新增：更新单个产品数据的函数
   const updateProduct = useCallback(async (productId: string) => {
     try {
-      const response = await api.get('/api/products');
+      // 清除缓存以获取最新数据
+      api.clearCache('/api/products');
+      const response = await api.get('/api/products', { cache: true });
       if (response.success && response.data?.products) {
         const updatedProduct = response.data.products.find((p: Product) => p.id === productId);
         if (updatedProduct) {

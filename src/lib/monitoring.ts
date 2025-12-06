@@ -46,6 +46,18 @@ export interface PerformanceMetrics {
   statusCode: number;
 }
 
+// 动态导入jsonwebtoken模块
+let jwtModule: any = null;
+let jsonwebtokenLoaded = false;
+
+const loadJsonWebToken = async () => {
+  if (!jsonwebtokenLoaded) {
+    jwtModule = await import('jsonwebtoken');
+    jsonwebtokenLoaded = true;
+  }
+  return jwtModule;
+};
+
 // 监控类
 export class MonitoringService {
   private static instance: MonitoringService;
@@ -69,7 +81,7 @@ export class MonitoringService {
   }
 
   // 记录日志
-  public log(level: LogLevel, message: string, context?: any, request?: NextRequest): void {
+  public async log(level: LogLevel, message: string, context?: any, request?: NextRequest): Promise<void> {
     const logEntry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
@@ -87,8 +99,10 @@ export class MonitoringService {
       const token = request.cookies.get('auth-token')?.value;
       if (token) {
         try {
-          const jwt = require('jsonwebtoken');
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+          // 使用动态导入jsonwebtoken
+          const jwt = await loadJsonWebToken();
+          const { verify } = jwt;
+          const decoded = verify(token, process.env.JWT_SECRET || 'default-secret') as any;
           logEntry.userId = decoded.userId;
         } catch (error) {
           // 忽略token解析错误
@@ -257,9 +271,11 @@ export class MonitoringService {
   private getClientIP(request?: NextRequest): string | undefined {
     if (!request) return undefined;
     
-    return request.headers.get('x-forwarded-for') || 
-           request.headers.get('x-real-ip') || 
-           request.ip;
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    const realIP = request.headers.get('x-real-ip');
+    const requestIP = (request as any).ip;
+    
+    return forwardedFor || realIP || requestIP;
   }
 
   // 控制台日志
@@ -305,17 +321,17 @@ export class MonitoringService {
 export const monitoring = MonitoringService.getInstance();
 
 // 便捷方法
-export const logError = (message: string, context?: any, request?: NextRequest) => 
-  monitoring.log(LogLevel.ERROR, message, context, request);
+export const logError = async (message: string, context?: any, request?: NextRequest) =>
+  await monitoring.log(LogLevel.ERROR, message, context, request);
 
-export const logWarn = (message: string, context?: any, request?: NextRequest) => 
-  monitoring.log(LogLevel.WARN, message, context, request);
+export const logWarn = async (message: string, context?: any, request?: NextRequest) =>
+  await monitoring.log(LogLevel.WARN, message, context, request);
 
-export const logInfo = (message: string, context?: any, request?: NextRequest) => 
-  monitoring.log(LogLevel.INFO, message, context, request);
+export const logInfo = async (message: string, context?: any, request?: NextRequest) =>
+  await monitoring.log(LogLevel.INFO, message, context, request);
 
-export const logDebug = (message: string, context?: any, request?: NextRequest) => 
-  monitoring.log(LogLevel.DEBUG, message, context, request);
+export const logDebug = async (message: string, context?: any, request?: NextRequest) =>
+  await monitoring.log(LogLevel.DEBUG, message, context, request);
 
 // 性能监控装饰器
 export function withPerformanceMonitoring(
@@ -350,7 +366,7 @@ export function withPerformanceMonitoring(
         request
       );
       
-      logError('Request failed', {
+      await logError('Request failed', {
         url,
         method,
         error: error instanceof Error ? error.message : 'Unknown error',

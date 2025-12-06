@@ -431,6 +431,7 @@ export default function OptimizedHomePage() {
             ) : (
               <div className="divide-y divide-gray-200">
                 {filteredProducts.map((product) => {
+                  // 直接计算，不使用 useMemo（因为 hooks 不能在循环中使用）
                   const stockStatus = getStockStatus(product.currentStock);
                   const stockPercentage = getStockPercentage(product.currentStock);
                   
@@ -528,9 +529,11 @@ export default function OptimizedHomePage() {
             <h3 className="text-sm font-medium text-gray-900">产品出库数量排名</h3>
           </div>
           <div className="p-4">
-            {getOutboundRanking().length > 0 ? (
-              <div className="space-y-2">
-                {getOutboundRanking().map((product, index) => (
+            {(() => {
+              const ranking = getOutboundRanking();
+              return ranking.length > 0 ? (
+                <div className="space-y-2">
+                  {ranking.map((product, index) => (
                   <div key={product.id} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded">
                     <div className="flex items-center gap-2 sm:gap-3">
                       <span className="text-sm font-medium text-gray-600 w-6">
@@ -549,13 +552,14 @@ export default function OptimizedHomePage() {
                       </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-gray-500 text-sm">
-                暂无出库数据
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  暂无出库数据
+                </div>
+              );
+            })()}
           </div>
         </div>
       </main>

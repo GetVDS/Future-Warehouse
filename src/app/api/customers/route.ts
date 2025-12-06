@@ -27,8 +27,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '未认证' }, { status: 401 });
     }
 
+    // 优化查询：使用聚合查询而不是关联查询来避免N+1问题
     const customers = await db.customer.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        createdAt: true,
+        updatedAt: true,
         _count: {
           select: {
             orders: {
@@ -38,31 +44,35 @@ export async function GET(request: NextRequest) {
             },
             purchaseRecords: true
           }
-        },
-        purchaseRecords: {
-          select: {
-            totalAmount: true
-          }
-        },
-        orders: {
-          where: {
-            status: 'confirmed'
-          },
-          select: {
-            totalAmount: true
-          }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    // 计算每个客户的总购买金额（只使用购买记录，避免重复计算）
+    // 获取所有客户的购买记录总金额（使用聚合查询）
+    const customerIds = customers.map(c => c.id);
+    const purchaseTotals = await db.purchaseRecord.groupBy({
+      by: ['customerId'],
+      where: {
+        customerId: { in: customerIds }
+      },
+      _sum: {
+        totalAmount: true
+      }
+    });
+
+    // 创建购买金额映射以便快速查找
+    const purchaseTotalMap = new Map(
+      purchaseTotals.map(pt => [pt.customerId, pt._sum.totalAmount || 0])
+    );
+
+    // 计算每个客户的总购买金额
     const customersWithTotalAmount = customers.map(customer => {
-      const purchaseRecordsTotal = customer.purchaseRecords.reduce((sum, record) => sum + Number(record.totalAmount), 0);
+      const totalAmount = purchaseTotalMap.get(customer.id) || 0;
       
       return {
         ...customer,
-        totalAmount: Math.round(purchaseRecordsTotal)
+        totalAmount: Math.round(Number(totalAmount))
       };
     });
 

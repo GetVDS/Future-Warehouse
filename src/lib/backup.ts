@@ -209,9 +209,9 @@ export class BackupService {
 
   // 压缩数据
   private static async compressData(data: string, level: number): Promise<Buffer> {
-    const zlib = require('zlib');
+    const { gzip } = await import('zlib');
     return new Promise((resolve, reject) => {
-      zlib.gzip(data, { level }, (err: Error | null, result: Buffer) => {
+      gzip(data, { level }, (err: Error | null, result: Buffer) => {
         if (err) reject(err);
         else resolve(result);
       });
@@ -220,9 +220,9 @@ export class BackupService {
 
   // 解压缩数据
   private static async decompressData(data: Buffer): Promise<string> {
-    const zlib = require('zlib');
+    const { gunzip } = await import('zlib');
     return new Promise((resolve, reject) => {
-      zlib.gunzip(data, (err: Error | null, result: Buffer) => {
+      gunzip(data, (err: Error | null, result: Buffer) => {
         if (err) reject(err);
         else resolve(result.toString());
       });
@@ -231,10 +231,10 @@ export class BackupService {
 
   // 加密数据
   private static async encryptData(data: string | Buffer, key: string): Promise<Buffer> {
-    const crypto = require('crypto');
+    const { createCipher, randomBytes } = await import('crypto');
     const algorithm = 'aes-256-gcm';
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher(algorithm, key);
+    const iv = randomBytes(16);
+    const cipher = createCipher(algorithm, key);
     
     let encrypted = cipher.update(data);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
@@ -247,7 +247,7 @@ export class BackupService {
 
   // 解密数据
   private static async decryptData(encryptedData: Buffer, key: string): Promise<Buffer> {
-    const crypto = require('crypto');
+    const { createDecipher } = await import('crypto');
     const algorithm = 'aes-256-gcm';
     
     // 提取IV、认证标签和加密数据
@@ -255,7 +255,7 @@ export class BackupService {
     const authTag = encryptedData.slice(16, 32);
     const data = encryptedData.slice(32);
     
-    const decipher = crypto.createDecipher(algorithm, key);
+    const decipher = createDecipher(algorithm, key);
     decipher.setAuthTag(authTag);
     
     let decrypted = decipher.update(data);

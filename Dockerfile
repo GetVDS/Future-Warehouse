@@ -4,7 +4,7 @@ FROM node:18-alpine AS base
 # 安装依赖阶段
 FROM base AS deps
 # 检查https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat curl
 WORKDIR /app
 
 # 复制package文件
@@ -39,6 +39,9 @@ WORKDIR /app
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
+
+# 安装curl用于健康检查
+RUN apk add --no-cache curl
 
 # 创建非root用户
 RUN addgroup --system --gid 1001 nodejs

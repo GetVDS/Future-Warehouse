@@ -276,9 +276,18 @@ services:
     environment:
       - DATABASE_URL=file:./db/custom.db
       - NODE_ENV=production
-      - JWT_SECRET=$JWT_SECRET
-      - NEXTAUTH_URL=https://$DOMAIN
-      - NEXTAUTH_SECRET=\$(openssl rand -hex 32)
+      - JWT_SECRET=${JWT_SECRET}
+      - NEXTAUTH_URL=https://${DOMAIN}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - FORCE_HTTPS=true
+      - SECURE_COOKIES=true
+      - ALLOWED_ORIGINS=https://${DOMAIN}
+      - LOG_LEVEL=error
+      - ENABLE_SECURITY_LOGGING=true
+      - ENABLE_QUERY_MONITORING=true
+      - SLOW_QUERY_THRESHOLD=1000
+      - ENABLE_CONNECTION_POOL=true
+      - MAX_CONNECTIONS=10
     volumes:
       - ./db:/app/db
       - ./logs:/app/logs
@@ -299,7 +308,8 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/ssl/certs:ro
+      - ./nginx/ssl:/etc/letsencrypt:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./logs/nginx:/var/log/nginx
     depends_on:
       - app
@@ -469,7 +479,12 @@ install_ssl_certificate() {
     sudo apt install -y certbot python3-certbot-nginx
     
     # 获取SSL证书
-    sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --email $EMAIL --agree-tos --no-eff-email --non-interactive
+    sudo certbot certonly --standalone -d $DOMAIN -d www.$DOMAIN --email $EMAIL --agree-tos --no-eff-email --non-interactive
+    
+    # 创建证书目录链接
+    sudo mkdir -p /opt/apps/inventory-system/nginx/ssl
+    sudo ln -sf /etc/letsencrypt/live/$DOMAIN /opt/apps/inventory-system/nginx/ssl/live
+    sudo ln -sf /etc/letsencrypt/archive/$DOMAIN /opt/apps/inventory-system/nginx/ssl/archive
     
     # 设置自动续期
     (crontab -l 2>/dev/null; echo "0 2 * * * /usr/bin/certbot renew --quiet") | crontab -

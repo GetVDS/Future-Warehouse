@@ -19,20 +19,25 @@ export interface Customer {
 export const useCustomers = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataFetched, setDataFetched] = useState(false);
 
   const fetchCustomers = useCallback(async () => {
+    if (dataFetched) return; // 防止重复调用
+    
     try {
       setLoading(true);
-      const response = await api.get('/api/customers');
+      // 启用客户端缓存，缓存5分钟
+      const response = await api.get('/api/customers', { cache: true });
       if (response.success && response.data?.customers) {
         setCustomers(response.data.customers);
+        setDataFetched(true);
       }
     } catch (error) {
       console.error('Failed to fetch customers:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dataFetched]);
 
   const addCustomer = useCallback(async (customerData: { name: string; phone: string }) => {
     const result = await api.post('/api/customers', customerData, {

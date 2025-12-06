@@ -15,19 +15,22 @@ export interface ApiOptions {
   successMessage?: string;
   showErrorMessage?: boolean;
   errorMessage?: string;
+  cache?: boolean; // 新增缓存选项
 }
 
 class ApiClient {
   private baseUrl: string;
+  private cache = new Map<string, { data: any; timestamp: number }>();
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
 
   constructor() {
     this.baseUrl = process.env.NODE_ENV === 'production'
-      ? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
-      : 'http://localhost:3000';
+      ? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001')
+      : 'http://localhost:3001';
   }
 
   private async request<T = any>(
-    endpoint: string, 
+    endpoint: string,
     options: ApiOptions = {}
   ): Promise<ApiResponse<T>> {
     const {
@@ -37,8 +40,18 @@ class ApiClient {
       showSuccessMessage = false,
       successMessage,
       showErrorMessage = true,
-      errorMessage
+      errorMessage,
+      cache = false // 新增缓存选项
     } = options;
+
+    // 检查缓存（仅对GET请求启用）
+    if (method === 'GET' && cache) {
+      const cacheKey = `${endpoint}${JSON.stringify(headers)}`;
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+        return cached.data;
+      }
+    }
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -54,6 +67,12 @@ class ApiClient {
       const data = await response.json();
 
       if (response.ok && data.success) {
+        // 缓存成功的GET请求响应
+        if (method === 'GET' && cache) {
+          const cacheKey = `${endpoint}${JSON.stringify(headers)}`;
+          this.cache.set(cacheKey, { data, timestamp: Date.now() });
+        }
+
         if (showSuccessMessage) {
           showSuccess(successMessage || data.message || '操作成功');
         }
@@ -71,6 +90,15 @@ class ApiClient {
         showError(errorMessage || errorMsg);
       }
       return { success: false, error: errorMsg };
+    }
+  }
+
+  // 清除缓存的方法
+  public clearCache(endpoint?: string) {
+    if (endpoint) {
+      this.cache.delete(endpoint);
+    } else {
+      this.cache.clear();
     }
   }
 
@@ -100,15 +128,18 @@ export const apiClient = new ApiClient();
 
 // 便捷方法
 export const api = {
-  get: <T = any>(endpoint: string, options?: Omit<ApiOptions, 'method'>) => 
+  get: <T = any>(endpoint: string, options?: Omit<ApiOptions, 'method'>) =>
     apiClient.get<T>(endpoint, options),
     
-  post: <T = any>(endpoint: string, body?: any, options?: Omit<ApiOptions, 'method' | 'body'>) => 
+  post: <T = any>(endpoint: string, body?: any, options?: Omit<ApiOptions, 'method' | 'body'>) =>
     apiClient.post<T>(endpoint, body, options),
     
-  put: <T = any>(endpoint: string, body?: any, options?: Omit<ApiOptions, 'method' | 'body'>) => 
+  put: <T = any>(endpoint: string, body?: any, options?: Omit<ApiOptions, 'method' | 'body'>) =>
     apiClient.put<T>(endpoint, body, options),
     
-  delete: <T = any>(endpoint: string, options?: Omit<ApiOptions, 'method' | 'body'>) => 
+  delete: <T = any>(endpoint: string, options?: Omit<ApiOptions, 'method' | 'body'>) =>
     apiClient.delete<T>(endpoint, options),
+    
+  clearCache: (endpoint?: string) =>
+    apiClient.clearCache(endpoint),
 };

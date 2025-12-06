@@ -22,6 +22,34 @@ export default function OrdersPage() {
   });
   const router = useRouter();
 
+  // 缓存今日统计数据的获取函数
+  const fetchTodayStatsCallback = useCallback(async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const response = await fetch('/api/orders/stats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          startDate: today.toISOString(),
+          endDate: tomorrow.toISOString()
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTodayStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Failed to fetch today stats:', error);
+    }
+  }, []);
+
   const {
     orders,
     customers,
@@ -61,37 +89,10 @@ export default function OrdersPage() {
 
   // 获取今日统计数据
   useEffect(() => {
-    const fetchTodayStats = async () => {
-      try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        const response = await fetch('/api/orders/stats', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            startDate: today.toISOString(),
-            endDate: tomorrow.toISOString()
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setTodayStats(data.stats);
-        }
-      } catch (error) {
-        console.error('Failed to fetch today stats:', error);
-      }
-    };
-
     if (user) {
-      fetchTodayStats();
+      fetchTodayStatsCallback();
     }
-  }, [user]);
+  }, [user, fetchTodayStatsCallback]);
 
   const handleAddOrderItem = () => {
     setOrderItems([...orderItems, { productId: '', quantity: 1 }]);
@@ -187,30 +188,7 @@ export default function OrdersPage() {
       }
       
       // 刷新今日统计数据
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      try {
-        const response = await fetch('/api/orders/stats', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            startDate: today.toISOString(),
-            endDate: tomorrow.toISOString()
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setTodayStats(data.stats);
-        }
-      } catch (error) {
-        console.error('Failed to fetch today stats:', error);
-      }
+      fetchTodayStatsCallback();
     } else {
       // 如果创建失败，移除乐观更新的订单
       setOrders(prevOrders => prevOrders.filter(order => order.id !== tempOrderId));
@@ -286,31 +264,7 @@ export default function OrdersPage() {
               }
               
               // 刷新今日统计数据
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              const tomorrow = new Date(today);
-              tomorrow.setDate(tomorrow.getDate() + 1);
-
-              try {
-                const statsResponse = await fetch('/api/orders/stats', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    startDate: today.toISOString(),
-                    endDate: tomorrow.toISOString()
-                  })
-                });
-
-                if (statsResponse.ok) {
-                  const statsData = await statsResponse.json();
-                  console.log('Updated stats data:', statsData.stats); // 调试日志
-                  setTodayStats(statsData.stats);
-                }
-              } catch (error) {
-                console.error('Failed to fetch today stats:', error);
-              }
+              fetchTodayStatsCallback();
             }
           } else {
             const errorData = await response.json();
@@ -378,31 +332,7 @@ export default function OrdersPage() {
               }
               
               // 刷新今日统计数据
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              const tomorrow = new Date(today);
-              tomorrow.setDate(tomorrow.getDate() + 1);
-
-              try {
-                const statsResponse = await fetch('/api/orders/stats', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    startDate: today.toISOString(),
-                    endDate: tomorrow.toISOString()
-                  })
-                });
-
-                if (statsResponse.ok) {
-                  const statsData = await statsResponse.json();
-                  console.log('Updated stats data:', statsData.stats); // 调试日志
-                  setTodayStats(statsData.stats);
-                }
-              } catch (error) {
-                console.error('Failed to fetch today stats:', error);
-              }
+              fetchTodayStatsCallback();
             }
           } else {
             const errorData = await response.json();
@@ -416,13 +346,16 @@ export default function OrdersPage() {
     );
   }, [setOrders, fetchOrders]);
 
-  // 使用 useMemo 优化过滤
+  // 使用 useMemo 优化过滤，避免每次渲染都重新计算
   const filteredOrders = useMemo(() => {
+    if (!searchTerm) return orders;
+    
+    const lowerSearchTerm = searchTerm.toLowerCase();
     return orders.filter(order =>
-      order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customer.name.toLowerCase().includes(lowerSearchTerm) ||
       order.customer.phone.includes(searchTerm) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.orderNumber ? `PRAISE${String(Number(order.orderNumber)).padStart(4, '0')}` : '').toLowerCase().includes(searchTerm.toLowerCase())
+      order.id.toLowerCase().includes(lowerSearchTerm) ||
+      (order.orderNumber ? `PRAISE${String(Number(order.orderNumber)).padStart(4, '0')}` : '').toLowerCase().includes(lowerSearchTerm)
     );
   }, [orders, searchTerm]);
 
@@ -798,6 +731,8 @@ export default function OrdersPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <select
+                    id="customer-select"
+                    name="customer-select"
                     value={selectedCustomer}
                     onChange={(e) => setSelectedCustomer(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mt-2"
@@ -836,6 +771,8 @@ export default function OrdersPage() {
                 {orderItems.length === 0 && (
                   <div className="flex gap-2 mb-2">
                     <select
+                      id="default-product-select"
+                      name="default-product-select"
                       value=""
                       onChange={(e) => {
                         setOrderItems([{ productId: e.target.value, quantity: 1 }]);
@@ -869,6 +806,8 @@ export default function OrdersPage() {
                 {orderItems.map((item, index) => (
                   <div key={index} className="flex gap-2 mb-2">
                     <select
+                      id={`product-select-${index}`}
+                      name={`product-select-${index}`}
                       value={item.productId}
                       onChange={(e) => handleOrderItemChange(index, 'productId', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
